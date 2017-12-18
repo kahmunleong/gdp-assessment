@@ -21,7 +21,6 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import ascii_lowercase
 import os, re, itertools, nltk, snowballstemmer
-pattern.download('all')
 import inflect 
 
 ################################### Q1 ########################################
