@@ -21,7 +21,10 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from string import ascii_lowercase
 import os, re, itertools, nltk, snowballstemmer
+pattern.download('all')
 import inflect 
+import multiprocessing
+from multiprocessing import Pool
 
 ################################### Q1 ########################################
 #------------------------------------------------------------------------------
@@ -360,16 +363,8 @@ test = read_csv("test.csv")
 # similarity together with somr arbritrary threshold (say: 0.4) to determine
 # if the security in description_x and description_y are the same.
 
-# split the words in the string by space in each row for both columns:
-split_x = test["description_x"].str.lower().str.split()
-split_y = test["description_y"].str.lower().str.split()
-
-# Count the occurence of each word: 
-v1 = split_x.apply(Counter)
-v2 = split_y.apply(Counter)
-
 # Define Cosine similarity function: 
-def cosine_sim(vec1, vec2):
+def cosine_sim_vec(vec1, vec2):
     # Aim: Compute cosine similarity
     # Input: two lists containing words and counts
     # Output: a number ranging from 0 to 1 
@@ -385,11 +380,23 @@ def cosine_sim(vec1, vec2):
      else:
         return float(numerator) / denominator
 
-# Compute similarity between the two columns using cosine similarity function:
-similarity = []
-for i in range(len(test)):
-    g = cosine_sim(v1[i], v2[i])   
-    similarity.append(g)     
+# Define cosine similarity function for data frame:
+def cosine_sim_df(df):
+    # Aim: To compute cosine similarity for data frame
+    similarity = []
+    # split the words in the string by space in each row for both columns:
+    split_x = test["description_x"].str.lower().str.split()
+    split_y = test["description_y"].str.lower().str.split()
+    # Count the occurence of each word: 
+    s1 = split_x.apply(Counter)
+    s2 = split_y.apply(Counter)
+    for i in range(len(test)):
+        g = cosine_sim_vec(s1[i], s2[i])   
+        similarity.append(g)
+    return(similarity)
+
+# Compute cosine similarity:
+similarity = cosine_sim_df(test)
 
 # Store results in new column of data
 test["similarity"] = similarity 
@@ -397,3 +404,19 @@ test["similarity"] = similarity
 #------------------------------------------------------------------------------
 # d) Parallelise the matching process (bonus)
 #------------------------------------------------------------------------------
+pool = multiprocessing.Pool()
+
+num_partitions = 10 #number of partitions to split dataframe
+num_cores = 4
+
+# Define function to parallelise data frame:
+def parallelise_dataframe(df, func):
+    df_split = array_split(df, num_partitions)
+    pool = Pool(num_cores)
+    df = pool.map(func, df_split)
+    pool.close()
+    pool.join()
+    return df
+
+# Execute:
+res = parallelize_dataframe(test, cosine_sim_df)
